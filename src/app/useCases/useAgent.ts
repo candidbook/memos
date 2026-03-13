@@ -9,6 +9,7 @@ import { BLOCKS_UNTIL_NEW_SERIES } from '../utils/constants';
 import { Transaction } from '../utils/appTypes';
 import { useContext } from 'react';
 import { AppContext } from '../utils/appContext';
+import { MinFeeCruzbits, MinAmountCruzbits } from '../utils/constants';
 
 window.Buffer = window.Buffer || require('buffer').Buffer;
 
@@ -97,6 +98,8 @@ export const signTransaction = async (
     nonce: Math.floor(Math.random() * (2 ** 31 - 1)),
     from: keyPair.publicKey,
     to: to,
+    amount: MinAmountCruzbits,
+    fee: MinFeeCruzbits,
     memo,
     series: Math.floor(tipHeight / BLOCKS_UNTIL_NEW_SERIES) + 1,
   };
