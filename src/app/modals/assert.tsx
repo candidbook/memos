@@ -35,6 +35,7 @@ import { transactionID, shortenHex } from '../utils/compat';
 import { SetupAgent } from '../components/agentSetup';
 import { TransactionList } from '../components/transaction';
 import { usePendingTransactions } from '../useCases/usePendingTxs';
+import { usePubKeyTransactions } from '../useCases/usePubKeyTxs';
 import { useProfile } from '../useCases/useProfile';
 
 const Assert = ({
@@ -127,6 +128,7 @@ const Assert = ({
   };
 
   const pendingTransactions = usePendingTransactions(selectedKey);
+  const recentTransactions = usePubKeyTransactions(selectedKey).slice(0, 3);
 
   return (
     <PageShell
@@ -323,6 +325,12 @@ const Assert = ({
                 <TransactionList
                   heading="Pending"
                   transactions={pendingTransactions}
+                />
+              )}
+              {!!recentTransactions.length && (
+                <TransactionList
+                  heading="Last 3"
+                  transactions={recentTransactions}
                 />
               )}
             </>
