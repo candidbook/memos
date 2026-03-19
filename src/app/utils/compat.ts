@@ -17,6 +17,7 @@ export const parseGraphDOT = (
     const pubkey = node.data.pubkey as string;
     const locale = node.data.locale as string;
     const label = node.data.label as string;
+    const memo = node.data.memo as string | undefined;
     const ranking = Number(node.data.ranking);
     const imbalance = Number(node.data.imbalance);
 
@@ -27,6 +28,7 @@ export const parseGraphDOT = (
       id: node.id,
       group: 1,
       label,
+      memo,
       pubkey,
       ranking,
       locale,
@@ -58,6 +60,7 @@ export const parseGraphDOT = (
       value: Number(link.data.weight),
       height: Number(link.data.height),
       time: Number(link.data.time),
+      memo: link.data.memo as string | undefined,
     });
   });
 

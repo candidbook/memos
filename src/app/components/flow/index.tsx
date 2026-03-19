@@ -20,11 +20,10 @@ import {
   addCircleOutline,
   discOutline,
   sunnyOutline,
-  chevronExpandOutline,
-  arrowRedoOutline,
+  folderOutline,
+  documentOutline,
 } from 'ionicons/icons';
 import { AppContext } from '../../utils/appContext';
-import { shortenB64 } from '../../utils/compat';
 import { GraphLink, GraphNode } from '../../utils/appTypes';
 import Sequence from '../../modals/sequence';
 import Assert from '../../modals/assert';
@@ -37,6 +36,27 @@ interface TreeNode {
   outgoing: GraphLink[];
   children: TreeNode[];
 }
+
+const isValidAbsolutePath = (value?: string) => {
+  if (!value || !value.startsWith('/')) {
+    return false;
+  }
+
+  if (value === '/') {
+    return true;
+  }
+
+  return !value.includes('\0') && !value.includes('//');
+};
+
+const pathLeafName = (value: string) => {
+  if (value === '/') {
+    return '/';
+  }
+
+  const parts = value.split('/').filter(Boolean);
+  return parts.at(-1) ?? value;
+};
 
 function FlowMap({
   forKey,
@@ -81,10 +101,10 @@ function FlowMap({
     [forKey, setForKey, presentKV, presentPointModal],
   );
 
-  const initialNode = useMemo(
-    () => nodes.find((n) => n.pubkey === forKey),
-    [nodes, forKey],
-  );
+  const initialNode = useMemo(() => {
+    const node = nodes.find((n) => n.pubkey === forKey);
+    return node && isValidAbsolutePath(node.pubkey) ? node : null;
+  }, [nodes, forKey]);
 
   useEffect(() => {
     handleNodeFocus(initialNode);
@@ -203,8 +223,21 @@ function FlowMap({
       return;
     }
 
+    const applicableLinks = links.filter((link) => {
+      const targetNode = nodes.find((candidate) => candidate.id === link.target);
+      return isValidAbsolutePath(targetNode?.pubkey);
+    });
+
+    const applicableNodeIds = new Set<number>([
+      initialNode.id,
+      ...applicableLinks.map((link) => link.source),
+      ...applicableLinks.map((link) => link.target),
+    ]);
+
+    const applicableNodes = nodes.filter((node) => applicableNodeIds.has(node.id));
+
     if (collapsedToImmediate) {
-      const immediateLinks = links.filter(
+      const immediateLinks = applicableLinks.filter(
         (link) => link.source === initialNode.id || link.target === initialNode.id,
       );
 
@@ -215,15 +248,15 @@ function FlowMap({
       ]);
 
       setVisibleData({
-        nodes: nodes.filter((node) => immediateNodeIds.has(node.id)),
+        nodes: applicableNodes.filter((node) => immediateNodeIds.has(node.id)),
         links: immediateLinks,
       });
       return;
     }
 
     setVisibleData({
-      nodes,
-      links,
+      nodes: applicableNodes,
+      links: applicableLinks,
     });
   }, [collapsedToImmediate, initialNode, links, nodes]);
 
@@ -308,7 +341,7 @@ function FlowMap({
         </IonCardSubtitle>
       </IonCardHeader>
       <IonCardContent>
-        {!rootTree && <p>No graph data available for this key.</p>}
+        {!rootTree && <p>No file/folder entries available for this key.</p>}
         {rootTree && (
           <TreeBranch
             branch={rootTree}
@@ -336,6 +369,9 @@ const TreeBranch = ({
   const [expanded, setExpanded] = useState(true);
 
   const isCurrent = branch.node.pubkey === currentKey;
+  const memoEdges = branch.outgoing.filter((edge) => Boolean(edge.memo?.trim()));
+  const hasMemo = Boolean(branch.node.memo?.trim()) || memoEdges.length > 0;
+  const hasChildren = branch.children.length > 0;
 
   return (
     <div
@@ -354,12 +390,15 @@ const TreeBranch = ({
           gap: 8,
         }}
       >
-        <IonButton size="small" fill={isCurrent ? 'solid' : 'outline'} onClick={() => onNodeClick(branch.node)}>
-          <IonIcon icon={isCurrent ? chevronExpandOutline : arrowRedoOutline} slot="start" />
-          <code>{branch.node.label || shortenB64(branch.node.pubkey)}</code>
+        <IonButton
+          size="small"
+          fill={isCurrent ? 'solid' : 'outline'}
+          onClick={() => onNodeClick(branch.node)}
+        >
+          <IonIcon icon={hasChildren ? folderOutline : documentOutline} slot="start" />
+          <code>{pathLeafName(branch.node.pubkey)}</code>
         </IonButton>
-        <IonBadge color="tertiary">incoming: {branch.incoming.length}</IonBadge>
-        <IonBadge color="secondary">outgoing: {branch.outgoing.length}</IonBadge>
+        <IonBadge color="medium">{branch.node.pubkey}</IonBadge>
         {branch.children.length > 0 && (
           <IonButton size="small" fill="clear" onClick={() => setExpanded((state) => !state)}>
             {expanded ? 'Collapse' : 'Expand'} {branch.children.length}
@@ -367,14 +406,14 @@ const TreeBranch = ({
         )}
       </div>
 
-      {expanded && branch.outgoing.length > 0 && (
+      {expanded && hasMemo && (
         <IonList inset={true}>
-          {branch.outgoing.map((edge, edgeIndex) => (
+          <IonItem lines="none">
+            <code>memo: {branch.node.memo}</code>
+          </IonItem>
+          {memoEdges.map((edge, edgeIndex) => (
             <IonItem key={`${branch.node.id}-${edge.target}-${edge.height}-${edgeIndex}`} lines="none">
-              <IonBadge color="medium">to #{edge.target}</IonBadge>
-              <IonBadge color="light">weight: {edge.value}</IonBadge>
-              <IonBadge color="light">height: {edge.height}</IonBadge>
-              <IonBadge color="light">time: {edge.time}</IonBadge>
+              <code>memo: {edge.memo}</code>
             </IonItem>
           ))}
         </IonList>

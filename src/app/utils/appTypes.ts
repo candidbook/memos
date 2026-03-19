@@ -17,6 +17,7 @@ export interface GraphNode {
   links?: GraphLink[];
   pubkey: string;
   label: string;
+  memo?: string;
   locale?: string;
   ranking: number;
   imbalance: number;
@@ -28,6 +29,7 @@ export interface GraphLink {
   value: number;
   height: number;
   time: number;
+  memo?: string;
 }
 
 export interface BlockHeader {
