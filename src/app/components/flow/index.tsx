@@ -310,52 +310,73 @@ function FlowMap({
             justifyContent: 'space-between',
           }}
         >
-          <IonInput
-            style={{ fontFamily: 'monospace, monospace', minHeight: '30px' }}
-            aria-label="for-key"
-            type="url"
-            enterkeyhint="go"
-            fill="outline"
-            clearOnEdit={true}
-            debounce={1000}
-            value={forKey}
-            onIonChange={(ev) => handleSearch(ev)}
-            onIonFocus={() => setInputFocused(true)}
-            onIonBlur={() => setInputFocused(false)}
-          />
-          {clickableSegments.length > 0 && (
-            <div
+          <div style={{ position: 'relative', width: '100%' }}>
+            <IonInput
               style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 8,
                 fontFamily: 'monospace, monospace',
+                minHeight: '30px',
+                ...(clickableSegments.length > 0
+                  ? {
+                      color: 'transparent',
+                      textShadow: 'none',
+                      caretColor: 'transparent',
+                    }
+                  : {}),
               }}
-            >
-              {clickableSegments.map((segment, index) => (
-                <div key={segment.value} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => handleSearchValue(segment.value)}
-                    style={{
-                      border: '1px solid var(--ion-color-medium)',
-                      borderRadius: 6,
-                      background: 'var(--ion-card-background)',
-                      color: 'var(--ion-text-color)',
-                      padding: '2px 8px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {segment.label}
-                  </button>
-                  {index < clickableSegments.length - 1 && <code>/</code>}
-                </div>
-              ))}
-            </div>
-          )}
+              aria-label="for-key"
+              type="url"
+              enterkeyhint="go"
+              fill="outline"
+              clearOnEdit={true}
+              debounce={1000}
+              value={forKey}
+              onIonChange={(ev) => handleSearch(ev)}
+              onIonFocus={() => setInputFocused(true)}
+              onIonBlur={() => setInputFocused(false)}
+            />
+            {clickableSegments.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  right: 44,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 4,
+                  fontFamily: 'monospace, monospace',
+                  pointerEvents: 'none',
+                }}
+              >
+                <code style={{ marginRight: 2 }}>/</code>
+                {clickableSegments.map((segment, index) => (
+                  <div key={segment.value} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => handleSearchValue(segment.value)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--ion-color-primary)',
+                        padding: 0,
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      {segment.label}
+                    </button>
+                    {index < clickableSegments.length - 1 && <code>/</code>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </IonCardSubtitle>
         <IonCardSubtitle className="ion-no-padding">
           <IonButton
