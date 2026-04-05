@@ -3,7 +3,6 @@ import {
   Block,
   BlockIdHeaderPair,
   Transaction,
-  Profile,
   GraphNode,
   GraphLink,
 } from '../utils/appTypes';
@@ -22,10 +21,6 @@ interface AppState {
   setCurrentBlock: (currentBlock: Block) => void;
   genesisBlock?: Block | null;
   setGenesisBlock: (genesisBlock: Block) => void;
-  requestProfile: (
-    publicKeyB64: string,
-    resultHandler: (profile: Profile) => void,
-  ) => (() => void) | undefined;
   requestGraph: (publicKeyB64: string) => void;
   graph: {
     nodes: GraphNode[];
@@ -77,9 +72,6 @@ export const AppContext = createContext<AppState>({
   setCurrentBlock: (currentBlock: Block) => {},
   genesisBlock: undefined,
   setGenesisBlock: (genesisBlock: Block) => {},
-  requestProfile:
-    (publicKeyB64: string, resultHandler: (profile: Profile) => void) =>
-    () => {},
   requestGraph: (publicKeyB64: string) => {},
   graph: null,
   rankingFilter: 0,

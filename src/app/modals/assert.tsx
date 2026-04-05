@@ -10,7 +10,6 @@ import {
   IonItem,
   IonItemDivider,
   IonList,
-  IonText,
   IonTextarea,
   useIonActionSheet,
   useIonModal,
@@ -19,24 +18,19 @@ import {
 import {
   ellipsisHorizontal,
   ellipsisVertical,
-  qrCodeOutline,
-  chevronCollapseOutline,
-  duplicateOutline,
 } from 'ionicons/icons';
 import type { OverlayEventDetail } from '@ionic/core';
 import { PageShell } from '../components/pageShell';
-import { Html5QrcodePlugin } from '../utils/qr-scanner';
 import { useInputValidationProps } from '../useCases/useInputValidation';
 import KeyChip from '../components/keyChip';
 import Agent from '../components/agent';
 import { useAgent } from '../useCases/useAgent';
 import { AppContext } from '../utils/appContext';
-import { transactionID, shortenHex } from '../utils/compat';
+import { shortenHex } from '../utils/compat';
 import { SetupAgent } from '../components/agentSetup';
 import { TransactionList } from '../components/transaction';
 import { usePendingTransactions } from '../useCases/usePendingTxs';
 import { usePubKeyTransactions } from '../useCases/usePubKeyTxs';
-import { useProfile } from '../useCases/useProfile';
 
 const Assert = ({
   onDismiss,
@@ -45,16 +39,16 @@ const Assert = ({
   onDismiss?: () => void;
   forKey?: string;
 }) => {
-  const { genesisBlock, pushTransaction } = useContext(AppContext);
+  const { pushTransaction } = useContext(AppContext);
 
   const {
-    value: block,
-    onBlur: onBlurBlock,
-    isValid: isBlockValid,
-    isTouched: isBlockTouched,
-    onInputChange: setBlock,
+    value: address,
+    onBlur: onBlurAddress,
+    isValid: isAddressValid,
+    isTouched: isAddressTouched,
+    onInputChange: setAddress,
   } = useInputValidationProps(
-    (block: string) => new RegExp('[A-Za-z0-9/+]{43}=').test(block),
+    (address: string) => new RegExp('[A-Za-z0-9/+]{43}=').test(address),
     forKey,
   );
 
@@ -71,10 +65,10 @@ const Assert = ({
   const [presentToast] = useIonToast();
 
   const execute = (passphrase: string, selectedKeyIndex: [number, number]) => {
-    if (!isBlockValid || !isMemoValid) {
+    if (!isAddressValid || !isMemoValid) {
       return;
     }
-    pushTransaction(block, memo, passphrase, selectedKeyIndex, (data: any) => {
+    pushTransaction(address, memo, passphrase, selectedKeyIndex, (data: any) => {
       presentToast({
         message:
           data.error ||
@@ -84,15 +78,11 @@ const Assert = ({
       });
 
       if (!data.error) {
-        setBlock('');
+        setAddress('');
         setMemo('');
       }
     });
   };
-
-  const [presentScanner, dismissScanner] = useIonModal(ScanQR, {
-    onDismiss: (data?: string) => dismissScanner(data),
-  });
 
   const [presentModal, dismiss] = useIonModal(AuthorizeTransaction, {
     onDismiss: () => dismiss(),
@@ -100,7 +90,7 @@ const Assert = ({
       execute(passphrase, selectedKeyIndex);
       dismiss();
     },
-    block,
+    address,
     memo,
   });
 
@@ -113,11 +103,6 @@ const Assert = ({
   } = useAgent();
 
   const selectedKey = publicKeys[selectedKeyIndex[0]][selectedKeyIndex[1]];
-
-  const keyProfile = useProfile(selectedKey);
-
-  const pubKeyPoints = keyProfile?.imbalance;
-  const pubKeyRanking = keyProfile?.ranking;
 
   const [presentActionSheet] = useIonActionSheet();
 
@@ -199,95 +184,36 @@ const Assert = ({
                     )}
                   </span>
                 </div>
-                <>
-                  {pubKeyPoints !== undefined && (
-                    <IonText color="primary">
-                      <p>
-                        <strong>Intention: </strong>
-                        <i>{pubKeyPoints} pts</i>
-                        <IonIcon
-                          icon={chevronCollapseOutline}
-                          color="primary"
-                        />
-                      </p>
-                    </IonText>
-                  )}
-                  {pubKeyRanking !== undefined && (
-                    <IonText color="primary">
-                      <p>
-                        <strong>Attention: </strong>
-                        <i>{Number((pubKeyRanking / 1) * 100).toFixed(2)}%</i>
-                      </p>
-                    </IonText>
-                  )}
-                </>
               </section>
               <IonList>
                 <IonItem lines="none">
-                  <IonButton
-                    fill="clear"
-                    slot="end"
-                    onClick={() => {
-                      presentScanner({
-                        onWillDismiss: (
-                          ev: CustomEvent<OverlayEventDetail>,
-                        ) => {
-                          if (typeof ev.detail.data === 'string') {
-                            setBlock(ev.detail.data);
-                          }
-                        },
-                      });
-                    }}
-                  >
-                    Scan
-                    <IonIcon slot="end" icon={qrCodeOutline}></IonIcon>
-                  </IonButton>
-                </IonItem>
-                <IonItem lines="none">
                   <IonInput
-                    className={`${isBlockValid && 'ion-valid'} ${
-                      isBlockValid === false && 'ion-invalid'
-                    } ${isBlockTouched && 'ion-touched'}`}
-                    label="Block"
+                    className={`${isAddressValid && 'ion-valid'} ${
+                      isAddressValid === false && 'ion-invalid'
+                    } ${isAddressTouched && 'ion-touched'}`}
+                    label="Address"
                     labelPlacement="stacked"
                     clearInput={true}
-                    errorText="Invalid block"
+                    errorText="Invalid address"
                     value={
-                      block.substring(40) === '000='
-                        ? block.replace(/0+=?$/g, '')
-                        : block
+                      address.substring(40) === '000='
+                        ? address.replace(/0+=?$/g, '')
+                        : address
                     }
                     onIonBlur={() => {
-                      if (!new RegExp('[A-Za-z0-9/+]{43}=').test(block)) {
-                        setBlock(
-                          `${block
+                      if (!new RegExp('[A-Za-z0-9/+]{43}=').test(address)) {
+                        setAddress(
+                          `${address
                             .replace(/[^A-Za-z0-9/+]/gi, '')
                             .padEnd(43, '0')}=`,
                         );
                       }
-                      onBlurBlock();
+                      onBlurAddress();
                     }}
                     onIonInput={(event) =>
-                      setBlock(event.target.value?.toString() ?? '')
+                      setAddress(event.target.value?.toString() ?? '')
                     }
                   />
-                </IonItem>
-
-                <IonItem lines="none">
-                  <IonButton
-                    fill="clear"
-                    slot="end"
-                    onClick={() => {
-                      const genesisTransaction = genesisBlock?.transactions[0];
-                      const genesisRef = genesisTransaction
-                        ? `//${transactionID(genesisTransaction)}//`
-                        : '';
-                      setMemo(genesisRef);
-                    }}
-                  >
-                    Genesis Ref
-                    <IonIcon slot="end" icon={duplicateOutline}></IonIcon>
-                  </IonButton>
                 </IonItem>
 
                 <IonItem lines="none">
@@ -307,7 +233,7 @@ const Assert = ({
                 </IonItem>
               </IonList>
               <IonButton
-                disabled={!isBlockValid || !isMemoValid}
+                disabled={!isAddressValid || !isMemoValid}
                 expand="block"
                 className="ion-padding ion-no-margin"
                 strong={true}
@@ -343,43 +269,15 @@ const Assert = ({
 
 export default Assert;
 
-export const ScanQR = ({
-  onDismiss,
-}: {
-  onDismiss: (decodedText?: string) => void;
-}) => {
-  const onNewScanResult = (decodedText: string, decodedResult: any) => {
-    onDismiss(decodedText ?? '');
-  };
-  return (
-    <PageShell
-      tools={[{ label: 'Cancel', action: onDismiss }]}
-      renderBody={() => (
-        <IonCard>
-          <IonCardSubtitle>Scan QR</IonCardSubtitle>
-          <IonCardContent>
-            <Html5QrcodePlugin
-              fps={10}
-              qrbox={250}
-              disableFlip={false}
-              qrCodeSuccessCallback={onNewScanResult}
-            />
-          </IonCardContent>
-        </IonCard>
-      )}
-    />
-  );
-};
-
 const AuthorizeTransaction = ({
   onDismiss,
   onAuthorize,
-  block,
+  address,
   memo,
 }: {
   onDismiss: () => void;
   onAuthorize: (passphrase: string, selectedKeyIndex: [number, number]) => void;
-  block: string;
+  address: string;
   memo: string;
 }) => {
   const {
@@ -420,7 +318,7 @@ const AuthorizeTransaction = ({
               justifyContent: 'space-evenly',
             }}
           >
-            <KeyChip value={block} />
+            <KeyChip value={address} />
           </span>
         </IonCardContent>
       </IonCard>

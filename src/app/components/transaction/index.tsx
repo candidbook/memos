@@ -27,13 +27,10 @@ import { useClipboard } from '../../useCases/useClipboard';
 import { ellipsisVertical, arrowForward } from 'ionicons/icons';
 import {
   transactionID,
-  getEmbeddedReference,
   shortenB64,
 } from '../../utils/compat';
-import { useContext, useEffect, useState } from 'react';
-import { AppContext } from '../../utils/appContext';
 import { OverlayEventDetail } from '@ionic/core/components';
-import { KeyAbbrev } from '../keyStats';
+import { KeyAbbrev } from '../keyChip';
 
 export const TransactionItem: React.FC<Transaction> = (transaction) => {
   const [present, dismiss] = useIonModal(TransactionDetail, {
@@ -128,27 +125,6 @@ export const TransactionDetail = ({
     }
   };
 
-  const { requestTransaction } = useContext(AppContext);
-
-  const referencedConxID = getEmbeddedReference(transaction);
-  const [referenced, setReferenced] = useState<Transaction>();
-
-  useEffect(() => {
-    if (!referencedConxID) return;
-    let cleanup = () => {};
-    const timeoutId = window.setTimeout(() => {
-      cleanup =
-        requestTransaction(referencedConxID, (conx) => {
-          setReferenced(conx);
-        }) ?? cleanup;
-    }, 0);
-
-    return () => {
-      cleanup();
-      window.clearTimeout(timeoutId);
-    };
-  }, [referencedConxID, requestTransaction]);
-
   return (
     <IonPage>
       <IonHeader>
@@ -214,17 +190,6 @@ export const TransactionDetail = ({
           </IonCardHeader>
           <IonCardContent>
             <KeyChip value={transaction.to} />
-
-            {referenced ? (
-              <IonCard>
-                <IonCardContent>
-                  <KeyChip value={referenced.to} />
-                  <p>{referenced.memo}</p>
-                </IonCardContent>
-              </IonCard>
-            ) : (
-              <p>{transaction.memo}</p>
-            )}
           </IonCardContent>
         </IonCard>
       </IonContent>

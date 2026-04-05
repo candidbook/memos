@@ -1,15 +1,3 @@
-export interface Profile {
-  public_key: string;
-  ranking: number;
-  imbalance: number;
-  locale?: string;
-  label?: string;
-  bio?: string;
-  block_id?: string;
-  height?: number;
-  error?: string;
-}
-
 export interface GraphNode {
   id: number;
   group?: number;

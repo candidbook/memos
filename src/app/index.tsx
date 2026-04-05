@@ -1,5 +1,5 @@
 import { IonApp, setupIonicReact } from '@ionic/react';
-import Explorer from './modals/explorer';
+import Explorer from './modals';
 
 /* Core CSS required for Ionic components to work properly */
 import '@ionic/react/css/core.css';
@@ -26,7 +26,6 @@ import {
   Transaction,
   GraphLink,
   GraphNode,
-  Profile,
   Block,
   BlockIdHeaderPair,
 } from './utils/appTypes';
@@ -121,13 +120,6 @@ const App: React.FC = () => {
           case 'tip_header':
             setTipHeader(body);
             break;
-          case 'profile':
-            document.dispatchEvent(
-              new CustomEvent<Profile>('profile', {
-                detail: body,
-              }),
-            );
-            break;
           case 'graph':
             setGraph(parseGraphDOT(body.graph, body.public_key, rankingFilter));
             break;
@@ -219,27 +211,6 @@ const App: React.FC = () => {
     if (readyState !== ReadyState.OPEN) return;
     sendJsonMessage({ type: 'get_tip_header' });
   }, [readyState, sendJsonMessage]);
-
-  const requestProfile = useCallback(
-    (publicKeyB64: string, resultHandler: (profile: Profile) => void) => {
-      if (readyState !== ReadyState.OPEN) return;
-      if (!publicKeyB64) throw new Error('missing publicKey');
-
-      sendJsonMessage({
-        type: 'get_profile',
-        body: {
-          public_key: publicKeyB64,
-        },
-      });
-
-      return socketEventListener<Profile>('profile', (data) => {
-        if (data.public_key === publicKeyB64) {
-          resultHandler(data);
-        }
-      });
-    },
-    [readyState, sendJsonMessage],
-  );
 
   const requestGraph = useCallback(
     (publicKeyB64: string = '') => {
@@ -411,7 +382,6 @@ const App: React.FC = () => {
     setCurrentBlock,
     genesisBlock,
     setGenesisBlock,
-    requestProfile,
     requestGraph,
     graph,
     rankingFilter,

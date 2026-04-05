@@ -36,16 +36,6 @@ export const parseGraphDOT = (
     });
   });
 
-  // nodes.push({
-  //   id: -1,
-  //   group: -1,
-  //   label: '+',
-  //   pubkey: '',
-  //   ranking: 0,
-  //   locale: '',
-  //   imbalance: 0,
-  // });
-
   const links: GraphLink[] = [];
   graph.forEachLink((link: any) => {
     const source = link.fromId;
@@ -64,14 +54,6 @@ export const parseGraphDOT = (
     });
   });
 
-  // links.push({
-  //   source: -1,
-  //   target: forNodeId,
-  //   value: -1,
-  //   height: -1, //9999999999,
-  //   time: -1, //9999999999,
-  // });
-
   return { nodes, links };
 };
 
@@ -85,12 +67,6 @@ export const shortenB64 = (value: string = '') => {
   }
 
   return value.replace(/0+=?$/g, '').substring(0, 25);
-
-  //return isValid ? value.replace(/0+=?$/g, '') : `${value.substring(0, 15)}`; //...${value.substring(40)}`;
-};
-
-export const isObserverKey = (value: string) => {
-  return !value.endsWith('00=');
 };
 
 export const transactionID = (transaction: Transaction) => {
@@ -109,21 +85,6 @@ export const transactionID = (transaction: Transaction) => {
   const rep_hash = sha3_256(JSON.stringify(obj));
 
   return rep_hash;
-};
-
-export const getEmbeddedReference = ({ memo }: Transaction) => {
-  //"Example reference in memo looks like this: //xxxxhexadecimalxxxxxx//";
-
-  const regex = /\/\/([a-fA-F0-9]+)\/\//g;
-
-  let match;
-  const hexNumbers = [];
-
-  while ((match = regex.exec(memo)) !== null) {
-    hexNumbers.push(match[1]); // match[1] contains the hexadecimal part
-  }
-
-  return hexNumbers[0] ?? '';
 };
 
 export const socketEventListener = <T>(

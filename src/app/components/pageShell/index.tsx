@@ -32,8 +32,7 @@ export const PageShell = ({ onDismissModal, renderBody, tools }: Props) => {
   const { selectedNode, setSelectedNode } = useContext(AppContext);
 
   const [present, dismiss] = useIonModal(Navigator, {
-    onDismiss: (data: string, role: string) => dismiss(data, role),
-    currentNode: selectedNode,
+    onDismiss: (data: string, role: string) => dismiss(data, role)
   });
 
   const openModal = useCallback(() => {
@@ -68,7 +67,7 @@ export const PageShell = ({ onDismissModal, renderBody, tools }: Props) => {
             ) : (
               <IonChip onClick={openModal}>
                 <IonIcon icon={sunnyOutline} color="primary" />
-                <IonLabel>Blocks</IonLabel>
+                <IonLabel>Explorer</IonLabel>
               </IonChip>
             )}
           </IonButtons>

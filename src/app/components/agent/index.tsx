@@ -16,9 +16,8 @@ import {
   checkmarkCircleOutline,
   arrowForwardOutline,
 } from 'ionicons/icons';
-import QRCode from 'react-qr-code';
 import { shortenB64 } from '../../utils/compat';
-import KeyStats, { KeyAbbrev } from '../keyStats';
+import { KeyAbbrev } from '../keyChip';
 
 const Agent = ({
   hideLabel,
@@ -70,7 +69,7 @@ export default Agent;
 
 const KeyDetails = ({
   onDismiss,
-  publicKeys: personas,
+  publicKeys,
   selectedKeyIndex,
   setSelectedKeyIndex,
 }: {
@@ -79,7 +78,7 @@ const KeyDetails = ({
   selectedKeyIndex: [number, number];
   setSelectedKeyIndex: (key: [number, number]) => void;
 }) => {
-  const selectedKey = personas[selectedKeyIndex[0]][selectedKeyIndex[1]];
+  const selectedKey = publicKeys[selectedKeyIndex[0]][selectedKeyIndex[1]];
   return (
     <IonContent scrollY={false}>
       <div
@@ -90,35 +89,20 @@ const KeyDetails = ({
           alignItems: 'center',
         }}
       >
-        <QRCode
-          id="QRCode"
-          size={256}
-          style={{
-            background: 'white',
-            padding: '8px',
-            marginBottom: '10px',
-            height: 'auto',
-            width: 200,
-          }}
-          value={selectedKey}
-          viewBox={`0 0 256 256`}
-        />
-        <KeyStats value={selectedKey} />
       </div>
 
       <IonList>
         <IonListHeader>
           <IonLabel>
             <h2>
-              Personas <IonIcon icon={keyOutline} color="primary"></IonIcon>
+              Keys <IonIcon icon={keyOutline} color="primary"></IonIcon>
             </h2>
-            <p>You have an unlimited set of persona keys in your agent.</p>
           </IonLabel>
         </IonListHeader>
         <section className="ion-content-scroll-host">
           <IonAccordionGroup>
-            {personas.map((keys, i) => (
-              <IonAccordion key={i} value={personas[i][0]}>
+            {publicKeys.map((keys, i) => (
+              <IonAccordion key={i} value={publicKeys[i][0]}>
                 <IonItem slot="header" color="light">
                   <IonLabel>
                     {i}
@@ -126,7 +110,7 @@ const KeyDetails = ({
                       className="ion-margin-start ion-margin-end"
                       icon={arrowForwardOutline}
                     />
-                    <KeyAbbrev value={personas[i][0]} />
+                    <KeyAbbrev value={publicKeys[i][0]} />
                   </IonLabel>
                 </IonItem>
                 <div className="ion-padding" slot="content">

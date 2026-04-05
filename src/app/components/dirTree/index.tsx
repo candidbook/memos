@@ -1,6 +1,5 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  IonBadge,
   IonButton,
   IonCard,
   IonCardContent,
@@ -9,29 +8,13 @@ import {
   IonCardSubtitle,
   IonButtons,
   IonHeader,
-  IonIcon,
   IonItem,
   IonList,
   IonModal,
-  IonRange,
   IonToolbar,
   IonPage,
-  useIonModal,
 } from '@ionic/react';
-import { useKeyDetails } from '../keyChip';
-import {
-  optionsOutline,
-  timerOutline,
-  addCircleOutline,
-  discOutline,
-  sunnyOutline,
-  folderOutline,
-  documentOutline,
-} from 'ionicons/icons';
-import { AppContext } from '../../utils/appContext';
 import { GraphLink, GraphNode } from '../../utils/appTypes';
-import Sequence from '../../modals/sequence';
-import Assert from '../../modals/assert';
 
 const MAX_TREE_DEPTH = 8;
 
@@ -166,47 +149,26 @@ const YouTubeShortModal = ({
   );
 };
 
-function FlowMap({
+function DirTree({
   forKey,
   setForKey,
   nodes,
   links,
-  rankingFilter,
 }: {
   forKey: string;
   setForKey: (pk: string) => void;
   nodes: GraphNode[];
   links: GraphLink[];
-  rankingFilter: number;
   colorScheme: 'light' | 'dark';
 }) {
-  const [presentKV] = useKeyDetails(forKey);
-
-  const [presentBlockModal, dismissBlock] = useIonModal(Sequence, {
-    onDismiss: (data: string, role: string) => dismissBlock(data, role),
-  });
-
-  const [presentPointModal, dismissPoint] = useIonModal(Assert, {
-    onDismiss: (data: string, role: string) => dismissPoint(data, role),
-    forKey,
-  });
 
   const handleNodeFocus = useCallback(
-    (node: GraphNode | null | undefined, clicked: boolean = false) => {
-      if (node?.pubkey === forKey && clicked) {
-        presentKV({
-          initialBreakpoint: 0.75,
-          breakpoints: [0, 0.75, 1],
-        });
-      } else {
-        if (node?.id === -1) {
-          presentPointModal();
-        } else if (node?.pubkey) {
+    (node: GraphNode | null | undefined) => {
+      if (node?.pubkey) {
           setForKey(toDisplayPath(node.pubkey));
         }
-      }
     },
-    [forKey, setForKey, presentKV, presentPointModal],
+    [setForKey],
   );
 
   const initialNode = useMemo(() => {
@@ -219,16 +181,9 @@ function FlowMap({
     handleNodeFocus(initialNode);
   }, [initialNode, handleNodeFocus]);
 
-  const [present, dismiss] = useIonModal(Filters, {
-    onDismiss: () => dismiss(),
-    value: rankingFilter,
-  });
-
   const clickableSegments = useMemo(() => {
     return buildPathSegments(toDisplayPath(forKey));
   }, [forKey]);
-
-  const [collapsedToImmediate, setCollapsedToImmediate] = useState(false);
 
   const [visibleData, setVisibleData] = useState<{
     nodes: GraphNode[];
@@ -330,29 +285,11 @@ function FlowMap({
 
     const applicableNodes = nodes.filter((node) => applicableNodeIds.has(node.id));
 
-    if (collapsedToImmediate) {
-      const immediateLinks = applicableLinks.filter(
-        (link) => link.source === initialNode.id || link.target === initialNode.id,
-      );
-
-      const immediateNodeIds = new Set<number>([
-        initialNode.id,
-        ...immediateLinks.map((link) => link.source),
-        ...immediateLinks.map((link) => link.target),
-      ]);
-
-      setVisibleData({
-        nodes: applicableNodes.filter((node) => immediateNodeIds.has(node.id)),
-        links: immediateLinks,
-      });
-      return;
-    }
-
     setVisibleData({
       nodes: applicableNodes,
       links: applicableLinks,
     });
-  }, [collapsedToImmediate, initialNode, links, nodes]);
+  }, [initialNode, links, nodes]);
 
   return (
     <IonCard>
@@ -409,71 +346,14 @@ function FlowMap({
             )}
           </div>
         </IonCardSubtitle>
-        <IonCardSubtitle className="ion-no-padding">
-          <IonButton
-            className="ion-no-padding"
-            fill="clear"
-            onClick={(e) => {
-              e.stopPropagation();
-              present({
-                initialBreakpoint: 0.75,
-                breakpoints: [0, 0.75, 1],
-              });
-            }}
-          >
-            <IonIcon color="primary" slot="icon-only" icon={optionsOutline} />
-            <IonBadge
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                opacity: 0.9,
-              }}
-              className="ion-no-padding"
-              color="danger"
-            ></IonBadge>
-          </IonButton>
-          <IonButton onClick={() => presentBlockModal()} fill="clear">
-            <IonIcon
-              className="ion-no-padding"
-              color="primary"
-              slot="icon-only"
-              icon={timerOutline}
-            />
-          </IonButton>
-          <IonButton onClick={() => presentPointModal()} fill="clear">
-            <IonIcon
-              className="ion-no-padding"
-              color="primary"
-              slot="icon-only"
-              icon={addCircleOutline}
-            />
-          </IonButton>
-          <IonButton onClick={() => setCollapsedToImmediate(true)} fill="clear">
-            <IonIcon
-              className="ion-no-padding"
-              color="primary"
-              slot="icon-only"
-              icon={discOutline}
-            />
-          </IonButton>
-          <IonButton onClick={() => setCollapsedToImmediate(false)} fill="clear">
-            <IonIcon
-              className="ion-no-padding"
-              color="primary"
-              slot="icon-only"
-              icon={sunnyOutline}
-            />
-          </IonButton>
-        </IonCardSubtitle>
       </IonCardHeader>
       <IonCardContent>
-        {!rootTree && <p>No file/folder entries available for this key.</p>}
+        {!rootTree && <p>No entries available for this key.</p>}
         {rootTree && (
           <TreeBranch
             branch={rootTree}
             isRoot={true}
-            onNodeClick={(node) => handleNodeFocus(node, true)}
+            onNodeClick={(node) => handleNodeFocus(node)}
             currentKey={forKey}
           />
         )}
@@ -493,13 +373,11 @@ const TreeBranch = ({
   currentKey: string;
   isRoot?: boolean;
 }) => {
-  const [expanded, setExpanded] = useState(true);
 
   const trimmedPubkey = toDisplayPath(branch.node.pubkey);
   const isCurrentNode = toDisplayPath(branch.node.pubkey) === toDisplayPath(currentKey);
   const memoEdges = branch.outgoing.filter((edge) => Boolean(edge.memo?.trim()));
   const hasMemo = Boolean(branch.node.memo?.trim()) || memoEdges.length > 0;
-  const hasChildren = branch.children.length > 0;
   const nodeMemoVideoId = getYouTubeVideoId(branch.node.memo);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
@@ -529,11 +407,6 @@ const TreeBranch = ({
             onNodeClick(branch.node);
           }}
         >
-          <IonIcon
-            icon={hasChildren ? folderOutline : documentOutline}
-            slot="start"
-            color={isCurrentNode ? 'light' : 'medium'}
-          />
           <div
             style={{
               display: 'flex',
@@ -542,18 +415,12 @@ const TreeBranch = ({
               overflow: 'hidden',
             }}
           >
-            <code>{pathLeafName(trimmedPubkey)}</code>
-            <code style={{ opacity: 0.75 }}>{trimmedPubkey}</code>
+            <code style={{ opacity: 0.75 }}>{pathLeafName(trimmedPubkey)}</code>
           </div>
         </IonItem>
-        {hasChildren && (
-          <IonItem button={true} detail={false} onClick={() => setExpanded((state) => !state)}>
-            <code>{expanded ? 'Collapse' : 'Expand'} {branch.children.length}</code>
-          </IonItem>
-        )}
       </IonList>
 
-      {expanded && hasMemo && (
+      {hasMemo && (
         <IonList inset={true}>
           <IonItem
             lines="none"
@@ -582,7 +449,7 @@ const TreeBranch = ({
         </IonList>
       )}
 
-      {expanded && branch.children.length > 0 && (
+      {branch.children.length > 0 && (
         <div style={{ marginTop: 4 }}>
           {branch.children.map((child) => (
             <TreeBranch
@@ -606,35 +473,4 @@ const TreeBranch = ({
   );
 };
 
-export default FlowMap;
-
-export const Filters = ({
-  onDismiss,
-  value,
-}: {
-  onDismiss: () => void;
-  value: number;
-}) => {
-  const { rankingFilter, setRankingFilter } = useContext(AppContext);
-
-  return (
-    <div className="ion-padding">
-      <IonList>
-        <IonItem>
-          <IonRange
-            aria-label="Attention filter"
-            labelPlacement="start"
-            label={`Filter < ${value}%`}
-            pin={true}
-            pinFormatter={(value: number) => `${value}%`}
-            onIonChange={({ detail }) => setRankingFilter(Number(detail.value))}
-            value={rankingFilter}
-          />
-        </IonItem>
-      </IonList>
-      <IonButton expand="block" onClick={onDismiss}>
-        Done
-      </IonButton>
-    </div>
-  );
-};
+export default DirTree;

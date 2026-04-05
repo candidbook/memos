@@ -1,10 +1,13 @@
 import { PageShell } from '../components/pageShell';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AppContext } from '../utils/appContext';
-import Flow from '../components/flow';
+import DirTree from '../components/dirTree';
 import { IonIcon, useIonModal } from '@ionic/react';
-import { terminalOutline } from 'ionicons/icons';
+import { terminalOutline, timerOutline, optionsOutline, addCircleOutline } from 'ionicons/icons';
 import WebsocketConsole from './websocketConsole';
+import Sequence from './sequence';
+import Assert from './assert';
+import Filter from './filter';
 
 const toDisplayPath = (value: string) => {
   const trimmedValue = value.replace(/0+=+$/g, '');
@@ -17,18 +20,33 @@ const toRequestPath = (value: string) => {
   return `${normalized.padEnd(43, '0')}=`;
 };
 
-const Context = () => {
+const Explore = () => {
   const { colorScheme, graph, requestGraph, rankingFilter } =
     useContext(AppContext);
+
+  const [peekGraphKey, setPeekGraphKey] = useState<string>('/');
+  const whichKey = useMemo(() => toDisplayPath(peekGraphKey), [peekGraphKey]);
+
+  const [presentFilterModal, dismissFilter] = useIonModal(Filter, {
+    onDismiss: () => dismissFilter(),
+    value: rankingFilter,
+  });
+
+  const [presentBlockModal, dismissBlock] = useIonModal(Sequence, {
+    onDismiss: (data: string, role: string) => dismissBlock(data, role),
+  });
+
+  const [presentPointModal, dismissPoint] = useIonModal(Assert, {
+    onDismiss: (data: string, role: string) => dismissPoint(data, role),
+    forKey: whichKey,
+  });
+
   const [presentSocketConsole, dismissSocketConsole] = useIonModal(
     WebsocketConsole,
     {
       onDismiss: () => dismissSocketConsole(),
     },
   );
-
-  const [peekGraphKey, setPeekGraphKey] = useState<string>('/');
-  const whichKey = useMemo(() => toDisplayPath(peekGraphKey), [peekGraphKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -59,6 +77,30 @@ const Context = () => {
     <PageShell
       tools={[
         {
+          label: 'Filter',
+          renderIcon: () => <IonIcon
+            slot="icon-only"
+            icon={optionsOutline}
+          />,
+          action: () => presentFilterModal(),
+        },
+        {
+          label: 'Sequence',
+          renderIcon: () => <IonIcon
+            slot="icon-only"
+            icon={timerOutline}
+          />,
+          action: () => presentBlockModal(),
+        },
+        {
+          label: 'Assert',
+          renderIcon: () => <IonIcon
+            slot="icon-only"
+            icon={addCircleOutline}
+          />,
+          action: () => presentPointModal(),
+        },
+        {
           label: 'WebSocket console',
           renderIcon: () => <IonIcon slot="icon-only" icon={terminalOutline} />,
           action: () => presentSocketConsole(),
@@ -69,12 +111,11 @@ const Context = () => {
           {!!whichKey && (
             <>
               {!!graph && (
-                <Flow
+                <DirTree
                   forKey={whichKey}
                   nodes={graph.nodes ?? []}
                   links={graph.links ?? []}
                   setForKey={setPeekGraphKey}
-                  rankingFilter={rankingFilter}
                   colorScheme={colorScheme}
                 />
               )}
@@ -86,4 +127,4 @@ const Context = () => {
   );
 };
 
-export default Context;
+export default Explore;

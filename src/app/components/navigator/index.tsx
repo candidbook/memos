@@ -8,27 +8,15 @@ import {
   IonHeader,
   IonIcon,
   IonPage,
-  IonText,
-  IonTextarea,
   IonToolbar,
 } from '@ionic/react';
 import { sunnyOutline } from 'ionicons/icons';
-import { useInputValidationProps } from '../../useCases/useInputValidation';
 
 const Navigator = ({
-  currentNode,
   onDismiss,
 }: {
-  currentNode: string;
   onDismiss: (data?: string | null | undefined, role?: string) => void;
 }) => {
-  const {
-    value: node,
-    isValid: isNodeValid,
-    isTouched: isNodeTouched,
-    onBlur: onBlurNode,
-    onInputChange: setNode,
-  } = useInputValidationProps((node: string) => !!node);
 
   return (
     <IonPage>
@@ -37,19 +25,9 @@ const Navigator = ({
           <IonButtons slot="start">
             <IonButton
               color="medium"
-              disabled={!currentNode && !node}
               onClick={() => onDismiss(null, 'cancel')}
             >
-              Cancel
-            </IonButton>
-          </IonButtons>
-          <IonButtons slot="end">
-            <IonButton
-              disabled={!node}
-              onClick={() => onDismiss(node, 'confirm')}
-              strong={true}
-            >
-              Confirm
+              Close
             </IonButton>
           </IonButtons>
         </IonToolbar>
@@ -71,34 +49,11 @@ const Navigator = ({
                   icon={sunnyOutline}
                   color="primary"
                 />
+                Content Explorer
               </div>
             </IonCardTitle>
           </IonCardHeader>
         </IonCard>
-        <section className="ion-padding">
-          <IonText color="primary">
-            <p>
-              Enter a{' '}
-
-              to continue.
-            </p>
-          </IonText>
-          <IonTextarea
-            className={`${isNodeValid && 'ion-valid'} ${
-              isNodeValid === false && 'ion-invalid'
-            } ${isNodeTouched && 'ion-touched'}`}
-            label="node url"
-            labelPlacement="stacked"
-            placeholder="..."
-            value={node}
-            onIonBlur={onBlurNode}
-            enterkeyhint="go"
-            onIonInput={(event) =>
-              setNode((event.target.value! ?? '').replace(/^https?:\/\//, ''))
-            }
-            rows={5}
-          />
-        </section>
       </IonContent>
     </IonPage>
   );
