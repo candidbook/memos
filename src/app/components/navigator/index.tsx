@@ -49,7 +49,7 @@ const Navigator = ({
                   icon={sunnyOutline}
                   color="primary"
                 />
-                Content Explorer
+                Expatriation Handbook
               </div>
             </IonCardTitle>
           </IonCardHeader>
