@@ -1,7 +1,7 @@
 {
   "name": "handbook",
   "version": "0.1.0",
-  "homepage": "https://expatriation.github.io/handbook",
+  "homepage": "https://new-arrival.github.io/handbook",
   "private": true,
   "dependencies": {
     "@ionic/react": "^8.5.4",
