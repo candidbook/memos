@@ -19,12 +19,12 @@ import {
 } from '@ionic/react';
 import { documentTextOutline, linkOutline, logoYoutube } from 'ionicons/icons';
 import { Transaction } from '../../utils/appTypes';
+import { indexDirectoryTransactions, pad44 } from '../../utils/dirProcessing';
 
 const MAX_TREE_DEPTH = 8;
 
 interface TreeNode {
   pubkey: string;
-  memo?: string;
   children: TreeNode[];
 }
 
@@ -205,64 +205,53 @@ function DirTree({
   setForKey: (pk: string) => void;
   transactions: Transaction[];
 }) {
-  const rootTree = useMemo(() => {
-    if (!forKey) {
-      return null;
+  const normalizedForKey = useMemo(() => (forKey ? pad44(forKey) : ''), [forKey]);
+
+  const { rootTree, memoByNode } = useMemo(() => {
+    if (!normalizedForKey) {
+      return { rootTree: null as TreeNode | null, memoByNode: {} as Record<string, string | undefined> };
     }
 
-    const outgoingMap = new Map<string, { to: string; memo?: string }[]>();
+    const indexed = indexDirectoryTransactions(transactions);
+    const adjacency = new Map<string, Set<string>>();
 
-    transactions.forEach((transaction) => {
-      if (!transaction.from || !transaction.to) {
-        return;
-      }
-
-      outgoingMap.set(transaction.from, [
-        ...(outgoingMap.get(transaction.from) ?? []),
-        { to: transaction.to, memo: transaction.memo },
-      ]);
-    });
-
-    const buildTree = (currentKey: string, depth: number, path: Set<string>): TreeNode => {
-      if (depth >= MAX_TREE_DEPTH) {
-        return { pubkey: currentKey, children: [] };
-      }
-
-      let outgoing = outgoingMap.get(currentKey) ?? [];
-
-      if (!outgoing.length && depth === 0) {
-        outgoing = transactions
-          .filter((transaction) => transaction.to === currentKey && transaction.from)
-          .map((transaction) => ({ to: transaction.from as string, memo: transaction.memo }));
-      }
-
-      const uniqueChildren = new Map<string, { memo?: string }>();
-      outgoing.forEach(({ to, memo }) => {
-        if (!uniqueChildren.has(to)) {
-          uniqueChildren.set(to, { memo });
-        }
+    indexed.edges
+      .filter((edge) => edge.kind === 'spatial' && edge.weight > 0)
+      .forEach((edge) => {
+        adjacency.set(edge.source, new Set([...(adjacency.get(edge.source) ?? []), edge.target]));
       });
 
-      const children = [...uniqueChildren.entries()]
-        .filter(([to]) => !path.has(to))
-        .map(([to, payload]) => {
-          const nextPath = new Set(path);
-          nextPath.add(to);
-          const child = buildTree(to, depth + 1, nextPath);
-          return {
-            ...child,
-            memo: payload.memo,
-          };
+    const buildTree = (pubkey: string, depth: number, visited: Set<string>): TreeNode => {
+      if (depth >= MAX_TREE_DEPTH) {
+        return { pubkey, children: [] };
+      }
+
+      const children = [...(adjacency.get(pubkey) ?? [])]
+        .filter((child) => !visited.has(child))
+        .map((child) => {
+          const nextVisited = new Set(visited);
+          nextVisited.add(child);
+          return buildTree(child, depth + 1, nextVisited);
         });
 
-      return {
-        pubkey: currentKey,
-        children,
-      };
+      return { pubkey, children };
     };
 
-    return buildTree(forKey, 0, new Set([forKey]));
-  }, [forKey, transactions]);
+    const tree = buildTree(normalizedForKey, 0, new Set([normalizedForKey]));
+
+    const memoMap = Object.entries(indexed.keyState).reduce<Record<string, string | undefined>>(
+      (acc, [key, value]) => {
+        acc[key] = value.memo;
+        return acc;
+      },
+      {},
+    );
+
+    return {
+      rootTree: tree,
+      memoByNode: memoMap,
+    };
+  }, [normalizedForKey, transactions]);
 
   return (
     <IonCard>
@@ -286,7 +275,7 @@ function DirTree({
             }}
           >
             <span>Public key:</span>
-            <code>{trimPubkeyDisplay(forKey)}</code>
+            <code>{trimPubkeyDisplay(normalizedForKey || forKey)}</code>
           </div>
         </IonCardSubtitle>
       </IonCardHeader>
@@ -297,8 +286,9 @@ function DirTree({
           <TreeBranch
             branch={rootTree}
             isRoot={true}
-            onNodeClick={(pubkey) => setForKey(pubkey)}
-            currentKey={forKey}
+            onNodeClick={setForKey}
+            currentKey={normalizedForKey}
+            memoByNode={memoByNode}
           />
         )}
       </IonCardContent>
@@ -310,17 +300,19 @@ const TreeBranch = ({
   branch,
   onNodeClick,
   currentKey,
+  memoByNode,
   isRoot = false,
 }: {
   branch: TreeNode;
   onNodeClick: (pubkey: string) => void;
   currentKey: string;
+  memoByNode: Record<string, string | undefined>;
   isRoot?: boolean;
 }) => {
   const trimmedPubkey = trimPubkeyDisplay(branch.pubkey);
   const isCurrentNode = branch.pubkey === currentKey;
   const [activeMemo, setActiveMemo] = useState<MemoContent | null>(null);
-  const memoContent = getMemoContent(branch.memo);
+  const memoContent = getMemoContent(memoByNode[branch.pubkey]);
   const memoIcon = getMemoIcon(memoContent);
 
   return (
@@ -373,6 +365,7 @@ const TreeBranch = ({
               branch={child}
               onNodeClick={onNodeClick}
               currentKey={currentKey}
+              memoByNode={memoByNode}
             />
           ))}
         </div>
