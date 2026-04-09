@@ -10,7 +10,6 @@ import {
   IonToolbar,
   useIonModal,
 } from '@ionic/react';
-import { OverlayEventDetail } from '@ionic/core/components';
 import { sunnyOutline } from 'ionicons/icons';
 import Navigator from '../navigator';
 import { useCallback, useContext, useEffect } from 'react';
@@ -29,31 +28,25 @@ interface Props {
 }
 
 export const PageShell = ({ onDismissModal, renderBody, tools }: Props) => {
-  const { selectedNode, setSelectedNode } = useContext(AppContext);
+  const { navigatorPublicKey } = useContext(AppContext);
 
   const [present, dismiss] = useIonModal(Navigator, {
-    onDismiss: (data: string, role: string) => dismiss(data, role)
+    onDismiss: (role: string) => dismiss(undefined, role),
   });
 
   const openModal = useCallback(() => {
-    present({
-      onWillDismiss: (ev: CustomEvent<OverlayEventDetail>) => {
-        if (ev.detail.role === 'confirm') {
-          setSelectedNode(ev.detail.data!);
-        }
-      },
-    });
-  }, [present, setSelectedNode]);
+    present();
+  }, [present]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (!selectedNode) {
+      if (!navigatorPublicKey) {
         openModal();
       }
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [selectedNode, openModal]);
+  }, [navigatorPublicKey, openModal]);
 
   return (
     <IonPage>

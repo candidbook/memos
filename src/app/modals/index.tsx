@@ -8,20 +8,23 @@ import WebsocketConsole from './websocketConsole';
 import Sequence from './sequence';
 import Assert from './assert';
 import Filter from './filter';
+import { indexTransactionsToGraph } from '../utils/directoryIndexer';
 
 const toDisplayPath = (value: string) => {
   const trimmedValue = value.replace(/0+=+$/g, '');
   return trimmedValue || '/';
 };
 
-const toRequestPath = (value: string) => {
-  const displayPath = toDisplayPath(value);
-  const normalized = displayPath === '/' ? displayPath : `${displayPath.replace(/\/+$/g, '')}/`;
-  return `${normalized.padEnd(43, '0')}=`;
-};
-
 const Explore = () => {
-  const { colorScheme, graph, requestGraph, rankingFilter } =
+  const {
+    colorScheme,
+    graph,
+    setGraph,
+    rankingFilter,
+    navigatorPublicKey,
+    transactionRange,
+    requestPkTransactions,
+  } =
     useContext(AppContext);
 
   const [peekGraphKey, setPeekGraphKey] = useState<string>('/');
@@ -49,20 +52,57 @@ const Explore = () => {
   );
 
   useEffect(() => {
+    let cleanup = () => {};
     const timeoutId = window.setTimeout(() => {
-      if (whichKey) {
-        requestGraph(toRequestPath(whichKey));
+      if (!navigatorPublicKey) {
+        setGraph(null);
+        return;
       }
+
+      cleanup =
+        requestPkTransactions(
+          navigatorPublicKey,
+          (transactions) => {
+            setGraph(indexTransactionsToGraph(transactions, navigatorPublicKey));
+          },
+          {
+            startHeight: transactionRange.startHeight,
+            endHeight: transactionRange.endHeight,
+            limit: transactionRange.limit,
+          },
+        ) ?? cleanup;
     }, 0);
+
     return () => {
+      cleanup();
       window.clearTimeout(timeoutId);
     };
-  }, [whichKey, requestGraph]);
+  }, [
+    navigatorPublicKey,
+    requestPkTransactions,
+    setGraph,
+    transactionRange.endHeight,
+    transactionRange.limit,
+    transactionRange.startHeight,
+  ]);
 
   useEffect(() => {
     const resultHandler = (data: any) => {
       if (whichKey && data.detail) {
-        requestGraph(toRequestPath(whichKey));
+        if (!navigatorPublicKey) {
+          return;
+        }
+        requestPkTransactions(
+          navigatorPublicKey,
+          (transactions) => {
+            setGraph(indexTransactionsToGraph(transactions, navigatorPublicKey));
+          },
+          {
+            startHeight: transactionRange.startHeight,
+            endHeight: transactionRange.endHeight,
+            limit: transactionRange.limit,
+          },
+        );
       }
     };
 
@@ -71,7 +111,15 @@ const Explore = () => {
     return () => {
       document.removeEventListener('inv_block', resultHandler);
     };
-  }, [whichKey, requestGraph]);
+  }, [
+    navigatorPublicKey,
+    requestPkTransactions,
+    setGraph,
+    transactionRange.endHeight,
+    transactionRange.limit,
+    transactionRange.startHeight,
+    whichKey,
+  ]);
 
   return (
     <PageShell

@@ -36,7 +36,6 @@ import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { signTransaction } from './useCases/useAgent';
 import {
   transactionID,
-  parseGraphDOT,
   socketEventListener,
 } from './utils/compat';
 import { DEFAULT_CRUZBIT_NODE } from './utils/constants';
@@ -71,6 +70,18 @@ const App: React.FC = () => {
   } | null>('flow-graph', null);
 
   const [rankingFilter, setRankingFilter] = useState(0);
+  const [navigatorPublicKey, setNavigatorPublicKey] = usePersistentState(
+    'navigator-public-key',
+    '',
+  );
+  const [transactionRange, setTransactionRange] = usePersistentState(
+    'navigator-transaction-range',
+    {
+      startHeight: 0,
+      endHeight: 0,
+      limit: 500,
+    },
+  );
   const [latestSocketResponse, setLatestSocketResponse] = useState<{
     receivedAt: string;
     payload: unknown;
@@ -119,9 +130,6 @@ const App: React.FC = () => {
             break;
           case 'tip_header':
             setTipHeader(body);
-            break;
-          case 'graph':
-            setGraph(parseGraphDOT(body.graph, body.public_key, rankingFilter));
             break;
           case 'block':
             if (body.block.header.height === 0) {
@@ -287,18 +295,27 @@ const App: React.FC = () => {
     (
       publicKeyB64: string,
       resultHandler: (transactions: Transaction[]) => void,
+      options?: {
+        startHeight?: number;
+        endHeight?: number;
+        limit?: number;
+      },
     ) => {
       if (readyState !== ReadyState.OPEN) return () => {};
       if (!publicKeyB64) return () => {};
-      if (!tipHeader?.header.height) return () => {};
+      if (!tipHeader?.header.height && options?.startHeight === undefined) return () => {};
+
+      const defaultStartHeight = tipHeader?.header.height
+        ? tipHeader.header.height + 1
+        : 1;
 
       sendJsonMessage({
         type: 'get_public_key_transactions',
         body: {
           public_key: publicKeyB64,
-          start_height: tipHeader?.header.height + 1,
-          end_height: 0,
-          limit: 10,
+          start_height: options?.startHeight ?? defaultStartHeight,
+          end_height: options?.endHeight ?? 0,
+          limit: options?.limit ?? 10,
         },
       });
 
@@ -384,6 +401,11 @@ const App: React.FC = () => {
     setGenesisBlock,
     requestGraph,
     graph,
+    setGraph,
+    navigatorPublicKey,
+    setNavigatorPublicKey,
+    transactionRange,
+    setTransactionRange,
     rankingFilter,
     setRankingFilter,
     pushTransaction,

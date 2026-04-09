@@ -26,6 +26,19 @@ interface AppState {
     nodes: GraphNode[];
     links: GraphLink[];
   } | null;
+  setGraph: (graph: { nodes: GraphNode[]; links: GraphLink[] } | null) => void;
+  navigatorPublicKey: string;
+  setNavigatorPublicKey: (publicKey: string) => void;
+  transactionRange: {
+    startHeight: number;
+    endHeight: number;
+    limit: number;
+  };
+  setTransactionRange: (range: {
+    startHeight: number;
+    endHeight: number;
+    limit: number;
+  }) => void;
   rankingFilter: number;
   setRankingFilter: (rankingFilter: number) => void;
   requestTransaction: (
@@ -35,6 +48,11 @@ interface AppState {
   requestPkTransactions: (
     publicKeyB64: string,
     resultHandler: (transactions: Transaction[]) => void,
+    options?: {
+      startHeight?: number;
+      endHeight?: number;
+      limit?: number;
+    },
   ) => (() => void) | undefined;
   pushTransaction: (
     to: string,
@@ -74,13 +92,30 @@ export const AppContext = createContext<AppState>({
   setGenesisBlock: (genesisBlock: Block) => {},
   requestGraph: (publicKeyB64: string) => {},
   graph: null,
+  setGraph: () => {},
+  navigatorPublicKey: '',
+  setNavigatorPublicKey: () => {},
+  transactionRange: {
+    startHeight: 0,
+    endHeight: 0,
+    limit: 500,
+  },
+  setTransactionRange: () => {},
   rankingFilter: 0,
   setRankingFilter: () => {},
   requestTransaction:
     (transaction_id: string, resultHandler: (transaction: Transaction) => void) =>
     () => {},
   requestPkTransactions:
-    (publicKeyB64: string, resultHandler: (transactions: Transaction[]) => void) =>
+    (
+      publicKeyB64: string,
+      resultHandler: (transactions: Transaction[]) => void,
+      options?: {
+        startHeight?: number;
+        endHeight?: number;
+        limit?: number;
+      },
+    ) =>
     () => {},
   requestPendingTransactions:
     (publicKeyB64: string, resultHandler: (transactions: Transaction[]) => void) =>
