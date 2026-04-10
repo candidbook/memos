@@ -462,11 +462,15 @@ const TreeBranch = ({
   onNodeClick,
   currentKey,
   isRoot = false,
+  depth = 0,
+  maxVisibleDepth = 1,
 }: {
   branch: TreeNode;
   onNodeClick: (node: GraphNode) => void;
   currentKey: string;
   isRoot?: boolean;
+  depth?: number;
+  maxVisibleDepth?: number;
 }) => {
 
   const trimmedPubkey = toDisplayPath(branch.node.pubkey);
@@ -523,7 +527,7 @@ const TreeBranch = ({
         </IonItem>
       </IonList>
 
-      {branch.children.length > 0 && (
+      {branch.children.length > 0 && depth < maxVisibleDepth && (
         <div style={{ marginTop: 4 }}>
           {branch.children.map((child) => (
             <TreeBranch
@@ -531,6 +535,8 @@ const TreeBranch = ({
               branch={child}
               onNodeClick={onNodeClick}
               currentKey={currentKey}
+              depth={depth + 1}
+              maxVisibleDepth={maxVisibleDepth}
             />
           ))}
         </div>
