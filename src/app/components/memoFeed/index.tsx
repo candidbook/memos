@@ -85,6 +85,7 @@ const MemoFeed = ({
 }) => {
   const normalizedPath = normalizePath(currentPath) ?? '/';
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const loadRequestedForLengthRef = useRef<number>(-1);
   const [activeIndex, setActiveIndex] = useState(0);
   const [renderedCount, setRenderedCount] = useState(1);
 
@@ -102,6 +103,7 @@ const MemoFeed = ({
   useEffect(() => {
     setActiveIndex(0);
     setRenderedCount(1);
+    loadRequestedForLengthRef.current = -1;
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }
@@ -129,7 +131,12 @@ const MemoFeed = ({
       return;
     }
 
-    if (activeIndex >= feedItems.length - 1 && canLoadMore) {
+    if (
+      activeIndex >= feedItems.length - 1 &&
+      canLoadMore &&
+      loadRequestedForLengthRef.current !== feedItems.length
+    ) {
+      loadRequestedForLengthRef.current = feedItems.length;
       onLoadMore();
     }
   }, [activeIndex, renderedCount, feedItems.length, canLoadMore, onLoadMore]);

@@ -1,5 +1,5 @@
 import { PageShell } from '../components/pageShell';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppContext } from '../utils/appContext';
 import DirTree from '../components/dirTree';
 import MemoFeed from '../components/memoFeed';
@@ -66,7 +66,7 @@ const Explore = () => {
     },
   );
 
-  const fetchTransactions = (
+  const fetchTransactions = useCallback((
     startHeight: number,
     endHeight: number,
     replace: boolean,
@@ -78,11 +78,9 @@ const Explore = () => {
     requestPkTransactions(
       navigatorPublicKey,
       (nextTransactions) => {
-        setTransactions((previous) => {
-          const merged = replace ? nextTransactions : [...previous, ...nextTransactions];
-          setGraph(indexTransactionsToGraph(merged, navigatorPublicKey));
-          return merged;
-        });
+        setTransactions((previous) =>
+          replace ? nextTransactions : [...previous, ...nextTransactions],
+        );
         setCanLoadMore(nextTransactions.length >= transactionRange.limit);
       },
       {
@@ -91,7 +89,7 @@ const Explore = () => {
         limit: transactionRange.limit,
       },
     );
-  };
+  }, [navigatorPublicKey, requestPkTransactions, transactionRange.limit]);
 
   useEffect(() => {
     if (!focusTransactionId || mode !== 'feed') {
@@ -124,7 +122,6 @@ const Explore = () => {
           (transactions) => {
             setTransactions(transactions);
             setCanLoadMore(transactions.length >= transactionRange.limit);
-            setGraph(indexTransactionsToGraph(transactions, navigatorPublicKey));
           },
           {
             startHeight: latestStartHeight,
@@ -159,7 +156,6 @@ const Explore = () => {
           (transactions) => {
             setTransactions(transactions);
             setCanLoadMore(transactions.length >= transactionRange.limit);
-            setGraph(indexTransactionsToGraph(transactions, navigatorPublicKey));
           },
           {
             startHeight: tipHeader?.header.height ? tipHeader.header.height + 1 : transactionRange.startHeight,
@@ -178,7 +174,6 @@ const Explore = () => {
   }, [
     navigatorPublicKey,
     requestPkTransactions,
-    setGraph,
     tipHeader?.header.height,
     transactionRange.endHeight,
     transactionRange.limit,
@@ -186,7 +181,16 @@ const Explore = () => {
     whichKey,
   ]);
 
-  const loadMore = () => {
+  useEffect(() => {
+    if (!navigatorPublicKey) {
+      setGraph(null);
+      return;
+    }
+
+    setGraph(indexTransactionsToGraph(transactions, navigatorPublicKey));
+  }, [navigatorPublicKey, setGraph, transactions]);
+
+  const loadMore = useCallback(() => {
     if (!canLoadMore) {
       return;
     }
@@ -195,7 +199,7 @@ const Explore = () => {
     const nextStartHeight = Math.max(1, nextEndHeight - transactionRange.limit + 1);
     setFetchStartHeight(nextStartHeight);
     fetchTransactions(nextStartHeight, nextEndHeight, false);
-  };
+  }, [canLoadMore, fetchStartHeight, fetchTransactions, transactionRange.limit]);
 
   return (
     <PageShell
