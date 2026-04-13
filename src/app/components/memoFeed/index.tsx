@@ -12,6 +12,11 @@ import { Transaction } from '../../utils/appTypes';
 import { getMemoContent } from '../../utils/memoContent';
 import { transactionID } from '../../utils/compat';
 
+export type FeedTreeContext = {
+  treeKind: 'spatial' | 'temporal' | 'periodic';
+  key: string;
+};
+
 type FeedItem = Transaction & {
   txId: string;
 };
@@ -37,6 +42,15 @@ const normalizePath = (value?: string) => {
 };
 
 const isSpatialKey = (value?: string) => Boolean(value?.startsWith('/'));
+
+const toTemporalKey = (time: number) => {
+  const timestamp = new Date(time * 1000);
+  const year = `${timestamp.getUTCFullYear()}`;
+  const month = `${year}+${`${timestamp.getUTCMonth() + 1}`.padStart(2, '0')}`;
+  return `${month}+${`${timestamp.getUTCDate()}`.padStart(2, '0')}`;
+};
+
+const toPeriodicKey = (series?: number) => `${series ?? 0}`;
 
 const byNewest = (a: FeedItem, b: FeedItem) => {
   const aSeries = a.series ?? 0;
@@ -86,12 +100,14 @@ const buildEntries = (transactions: Transaction[]) => {
   const entries: FeedEntry[] = [];
 
   normalizeFeedTransactions(transactions).forEach((tx) => {
-    entries.push({
-      entryId: `${tx.txId}:memo`,
-      tx,
-      kind: 'memo',
-      path: normalizePath(tx.to),
-    });
+    if (isSpatialKey(tx.to)) {
+      entries.push({
+        entryId: `${tx.txId}:memo`,
+        tx,
+        kind: 'memo',
+        path: normalizePath(tx.to),
+      });
+    }
 
     if (!isSpatialKey(tx.to)) {
       entries.push({
@@ -115,20 +131,41 @@ const buildEntries = (transactions: Transaction[]) => {
   return entries.sort(byEntryOrder);
 };
 
+const contextFromEntry = (entry?: FeedEntry): FeedTreeContext => {
+  if (!entry) {
+    return {
+      treeKind: 'spatial',
+      key: '/',
+    };
+  }
+
+  if (entry.path) {
+    return {
+      treeKind: 'spatial',
+      key: entry.path,
+    };
+  }
+
+  return {
+    treeKind: 'temporal',
+    key: toTemporalKey(entry.tx.time),
+  };
+};
+
 const MemoFeed = ({
   transactions,
   canLoadMore,
   onLoadMore,
   focusTransactionId,
   onSwitchNavigator,
-  onActivePathChange,
+  onActiveContextChange,
 }: {
   transactions: Transaction[];
   canLoadMore: boolean;
   onLoadMore: () => void;
   focusTransactionId?: string | null;
   onSwitchNavigator: (publicKey: string) => void;
-  onActivePathChange: (path: string) => void;
+  onActiveContextChange: (context: FeedTreeContext) => void;
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const loadRequestedForLengthRef = useRef<number>(-1);
@@ -148,10 +185,8 @@ const MemoFeed = ({
 
   useEffect(() => {
     const activeEntry = feedEntries[activeIndex];
-    if (activeEntry?.path) {
-      onActivePathChange(activeEntry.path);
-    }
-  }, [activeIndex, feedEntries, onActivePathChange]);
+    onActiveContextChange(contextFromEntry(activeEntry));
+  }, [activeIndex, feedEntries, onActiveContextChange]);
 
   useEffect(() => {
     if (!focusTransactionId || !scrollRef.current) {
@@ -219,7 +254,7 @@ const MemoFeed = ({
               <IonCardHeader>
                 <IonCardSubtitle>{tx.txId.slice(0, 14)}…</IonCardSubtitle>
                 <IonCardTitle style={{ fontSize: 14 }}>
-                  series: {tx.series ?? 'n/a'} · time: {tx.time}
+                  series: {tx.series ?? 'n/a'} · time: {tx.time} · period: {toPeriodicKey(tx.series)}
                 </IonCardTitle>
               </IonCardHeader>
               <IonCardContent>

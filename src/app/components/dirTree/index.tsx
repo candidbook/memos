@@ -28,35 +28,49 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-const isValidAbsolutePath = (value?: string) => {
-  if (!value || !value.startsWith('/')) {
-    return false;
-  }
-
-  if (value === '/') {
-    return true;
-  }
-
-  return !value.includes('\0') && !value.includes('//');
-};
-
-const pathLeafName = (value: string) => {
-  if (value === '/') {
-    return '/';
-  }
-
-  const parts = value.split('/').filter(Boolean);
-  return parts.at(-1) ?? value;
-};
-
 const trimPubkeyDisplay = (value: string) => {
   const trimmedValue = value.replace(/0+=+$/g, '');
   return trimmedValue.length > 0 ? trimmedValue : value;
 };
 
-const toDisplayPath = (value: string) => {
+const toDisplayKey = (value: string) => {
   const trimmed = trimPubkeyDisplay(value);
   return trimmed || '/';
+};
+
+const isSpatialKey = (value: string) => value.startsWith('/');
+const isTemporalKey = (value: string) => /^\d{4}(\+\d{2}){0,2}$/.test(value);
+const isPeriodicKey = (value: string) => /^\d+$/.test(value);
+
+const isNodeInTree = (value: string, treeKind: 'spatial' | 'temporal' | 'periodic') => {
+  const key = toDisplayKey(value);
+
+  if (treeKind === 'spatial') {
+    return isSpatialKey(key);
+  }
+
+  if (treeKind === 'temporal') {
+    return isTemporalKey(key) || isSpatialKey(key) || key === '0';
+  }
+
+  return isPeriodicKey(key) || isSpatialKey(key) || key === '0';
+};
+
+const pathLeafName = (value: string, treeKind: 'spatial' | 'temporal' | 'periodic') => {
+  if (treeKind === 'spatial') {
+    if (value === '/') {
+      return '/';
+    }
+    const parts = value.split('/').filter(Boolean);
+    return parts.at(-1) ?? value;
+  }
+
+  if (treeKind === 'temporal') {
+    const parts = value.split('+').filter(Boolean);
+    return parts.at(-1) ?? value;
+  }
+
+  return value;
 };
 
 const getMemoIcon = (memoContent: MemoContent) => {
@@ -155,12 +169,14 @@ const MemoModal = ({
 
 function DirTree({
   forKey,
+  treeKind,
   setForKey,
   nodes,
   links,
   onLeafOpen,
 }: {
   forKey: string;
+  treeKind: 'spatial' | 'temporal' | 'periodic';
   setForKey: (pk: string) => void;
   nodes: GraphNode[];
   links: GraphLink[];
@@ -170,17 +186,22 @@ function DirTree({
   const handleNodeFocus = useCallback(
     (node: GraphNode | null | undefined) => {
       if (node?.pubkey) {
-        setForKey(toDisplayPath(node.pubkey));
+        setForKey(toDisplayKey(node.pubkey));
       }
     },
     [setForKey],
   );
 
   const initialNode = useMemo(() => {
-    const displayKey = toDisplayPath(forKey);
-    const node = nodes.find((n) => toDisplayPath(n.pubkey) === displayKey);
-    return node && isValidAbsolutePath(toDisplayPath(node.pubkey)) ? node : null;
-  }, [nodes, forKey]);
+    const displayKey = toDisplayKey(forKey);
+    const exact = nodes.find((n) => toDisplayKey(n.pubkey) === displayKey);
+    if (exact && isNodeInTree(exact.pubkey, treeKind)) {
+      return exact;
+    }
+
+    const fallbackRoot = treeKind === 'spatial' ? '/' : '0';
+    return nodes.find((n) => toDisplayKey(n.pubkey) === fallbackRoot) ?? null;
+  }, [nodes, forKey, treeKind]);
 
   useEffect(() => {
     handleNodeFocus(initialNode);
@@ -250,7 +271,7 @@ function DirTree({
 
     const sourceMap = new Map<number, GraphLink[]>();
     const targetMap = new Map<number, GraphLink[]>();
-    const nodeMap = new Map<number, GraphNode>(nodes.map((node) => [node.id, node]));
+    const nodeMap = new Map<number, GraphNode>(visibleData.nodes.map((node) => [node.id, node]));
 
     for (const link of visibleData.links) {
       sourceMap.set(link.source, [...(sourceMap.get(link.source) ?? []), link]);
@@ -265,7 +286,7 @@ function DirTree({
       targetMap,
       nodeMap,
     );
-  }, [buildTree, initialNode, nodes, visibleData.links]);
+  }, [buildTree, initialNode, visibleData.links, visibleData.nodes]);
 
   useEffect(() => {
     if (!initialNode) {
@@ -273,24 +294,26 @@ function DirTree({
       return;
     }
 
-    const applicableLinks = links.filter((link) => {
-      const targetNode = nodes.find((candidate) => candidate.id === link.target);
-      return isValidAbsolutePath(targetNode?.pubkey);
-    });
+    const applicableLinks = links.filter((link) => link.kind === treeKind);
 
     const applicableNodeIds = new Set<number>([
       initialNode.id,
-      ...applicableLinks.map((link) => link.source),
-      ...applicableLinks.map((link) => link.target),
+      ...applicableLinks.map((link) => Number(link.source)),
+      ...applicableLinks.map((link) => Number(link.target)),
     ]);
 
-    const applicableNodes = nodes.filter((node) => applicableNodeIds.has(node.id));
+    const applicableNodes = nodes.filter(
+      (node) => applicableNodeIds.has(node.id) && isNodeInTree(node.pubkey, treeKind),
+    );
 
     setVisibleData({
       nodes: applicableNodes,
-      links: applicableLinks,
+      links: applicableLinks.filter(
+        (link) => applicableNodes.some((node) => node.id === Number(link.source))
+          && applicableNodes.some((node) => node.id === Number(link.target)),
+      ),
     });
-  }, [initialNode, links, nodes]);
+  }, [initialNode, links, nodes, treeKind]);
 
   return (
     <IonCard>
@@ -299,6 +322,7 @@ function DirTree({
         {rootTree && (
           <TreeBranch
             branch={rootTree}
+            treeKind={treeKind}
             isRoot={true}
             onNodeClick={(node) => handleNodeFocus(node)}
             currentKey={forKey}
@@ -312,6 +336,7 @@ function DirTree({
 
 const TreeBranch = ({
   branch,
+  treeKind,
   onNodeClick,
   currentKey,
   isRoot = false,
@@ -320,6 +345,7 @@ const TreeBranch = ({
   onLeafOpen,
 }: {
   branch: TreeNode;
+  treeKind: 'spatial' | 'temporal' | 'periodic';
   onNodeClick: (node: GraphNode) => void;
   currentKey: string;
   isRoot?: boolean;
@@ -328,8 +354,8 @@ const TreeBranch = ({
   onLeafOpen?: (txId: string) => void;
 }) => {
 
-  const trimmedPubkey = toDisplayPath(branch.node.pubkey);
-  const isCurrentNode = toDisplayPath(branch.node.pubkey) === toDisplayPath(currentKey);
+  const trimmedPubkey = toDisplayKey(branch.node.pubkey);
+  const isCurrentNode = toDisplayKey(branch.node.pubkey) === toDisplayKey(currentKey);
   const [activeMemo, setActiveMemo] = useState<MemoContent | null>(null);
   const memoContent = getMemoContent(branch.node.memo);
   const memoIcon = getMemoIcon(memoContent);
@@ -374,7 +400,7 @@ const TreeBranch = ({
               overflow: 'hidden',
             }}
           >
-            <code style={{ opacity: 0.75 }}>{pathLeafName(trimmedPubkey)}</code>
+            <code style={{ opacity: 0.75 }}>{pathLeafName(trimmedPubkey, treeKind)}</code>
           </div>
           {isCurrentNode && memoIcon && (
             <IonIcon
@@ -392,6 +418,7 @@ const TreeBranch = ({
             <TreeBranch
               key={`${branch.node.id}-${child.node.id}`}
               branch={child}
+              treeKind={treeKind}
               onNodeClick={onNodeClick}
               currentKey={currentKey}
               depth={depth + 1}

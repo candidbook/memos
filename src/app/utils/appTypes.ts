@@ -16,6 +16,7 @@ export interface GraphLink {
   value: number;
   height: number;
   time: number;
+  kind?: 'spatial' | 'temporal' | 'periodic' | 'verbal';
   memo?: string;
 }
 

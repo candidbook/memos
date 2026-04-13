@@ -261,7 +261,7 @@ export const indexTransactionsToGraph = (
     group: 1,
   }));
 
-  const graphLinks = Array.from(links.values()).filter((link) => link.kind === 'spatial');
+  const graphLinks = Array.from(links.values());
 
   return { nodes: graphNodes, links: graphLinks };
 };

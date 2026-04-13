@@ -2,35 +2,71 @@ import { PageShell } from '../components/pageShell';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppContext } from '../utils/appContext';
 import DirTree from '../components/dirTree';
-import MemoFeed from '../components/memoFeed';
-import { IonIcon, useIonModal } from '@ionic/react';
+import MemoFeed, { FeedTreeContext } from '../components/memoFeed';
+import {
+  IonButton,
+  IonIcon,
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
+  useIonModal,
+} from '@ionic/react';
 import { terminalOutline, addCircleOutline } from 'ionicons/icons';
 import WebsocketConsole from './console';
 import Send from './send';
 import { indexTransactionsToGraph } from '../utils/indexer';
 import { Transaction } from '../utils/appTypes';
 
-const toDisplayPath = (value: string) => {
+const toDisplayKey = (value: string) => {
   const trimmedValue = value.replace(/0+=+$/g, '');
   return trimmedValue || '/';
 };
 
-const buildPathSegments = (value: string) => {
-  const normalized = toDisplayPath(value);
-  if (normalized === '/') {
-    return [];
+const rootKeyFor = (treeKind: 'spatial' | 'temporal' | 'periodic') => {
+  if (treeKind === 'spatial') {
+    return '/';
   }
 
-  const parts = normalized.split('/').filter(Boolean);
-  let currentPath = '/';
+  return '0';
+};
 
-  return parts.map((segment) => {
-    currentPath = `${currentPath}${segment}/`;
-    return {
-      label: segment,
-      value: currentPath,
-    };
-  });
+const splitKeySegments = (key: string, treeKind: 'spatial' | 'temporal' | 'periodic') => {
+  if (treeKind === 'spatial') {
+    const normalized = toDisplayKey(key);
+    if (normalized === '/') {
+      return [] as string[];
+    }
+
+    return normalized.split('/').filter(Boolean);
+  }
+
+  if (treeKind === 'temporal') {
+    return key.split('+').filter(Boolean);
+  }
+
+  return [key];
+};
+
+const buildSegments = (key: string, treeKind: 'spatial' | 'temporal' | 'periodic') => {
+  const parts = splitKeySegments(key, treeKind);
+
+  if (treeKind === 'spatial') {
+    let currentPath = '/';
+    return parts.map((segment) => {
+      currentPath = `${currentPath}${segment}/`;
+      return { label: segment, value: currentPath };
+    });
+  }
+
+  if (treeKind === 'temporal') {
+    let current = '';
+    return parts.map((segment) => {
+      current = current ? `${current}+${segment}` : segment;
+      return { label: segment, value: current };
+    });
+  }
+
+  return parts.map((segment) => ({ label: segment, value: segment }));
 };
 
 const Explore = () => {
@@ -46,25 +82,27 @@ const Explore = () => {
     useContext(AppContext);
 
   const [mode, setMode] = useState<'feed' | 'tree'>('feed');
+  const [treeKind, setTreeKind] = useState<'spatial' | 'temporal' | 'periodic'>('spatial');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fetchStartHeight, setFetchStartHeight] = useState<number>(0);
   const [canLoadMore, setCanLoadMore] = useState<boolean>(true);
   const [focusTransactionId, setFocusTransactionId] = useState<string | null>(null);
   const [peekGraphKey, setPeekGraphKey] = useState<string>('/');
-  const whichKey = useMemo(() => toDisplayPath(peekGraphKey), [peekGraphKey]);
-  const clickableSegments = useMemo(() => buildPathSegments(whichKey), [whichKey]);
+
+  const displayKey = useMemo(() => toDisplayKey(peekGraphKey), [peekGraphKey]);
+  const clickableSegments = useMemo(
+    () => buildSegments(displayKey, treeKind),
+    [displayKey, treeKind],
+  );
 
   const [presentSendModal, dismissSend] = useIonModal(Send, {
     onDismiss: (data: string, role: string) => dismissSend(data, role),
-    forKey: whichKey,
+    forKey: displayKey,
   });
 
-  const [presentSocketConsole, dismissSocketConsole] = useIonModal(
-    WebsocketConsole,
-    {
-      onDismiss: () => dismissSocketConsole(),
-    },
-  );
+  const [presentSocketConsole, dismissSocketConsole] = useIonModal(WebsocketConsole, {
+    onDismiss: () => dismissSocketConsole(),
+  });
 
   const fetchTransactions = useCallback((
     startHeight: number,
@@ -108,9 +146,9 @@ const Explore = () => {
       cleanup =
         requestPkTransactions(
           navigatorPublicKey,
-          (transactions) => {
-            setTransactions(transactions);
-            setCanLoadMore(transactions.length >= transactionRange.limit);
+          (nextTransactions) => {
+            setTransactions(nextTransactions);
+            setCanLoadMore(nextTransactions.length >= transactionRange.limit);
           },
           {
             startHeight: latestStartHeight,
@@ -136,18 +174,20 @@ const Explore = () => {
 
   useEffect(() => {
     const resultHandler = (data: any) => {
-      if (whichKey && data.detail) {
+      if (displayKey && data.detail) {
         if (!navigatorPublicKey) {
           return;
         }
         requestPkTransactions(
           navigatorPublicKey,
-          (transactions) => {
-            setTransactions(transactions);
-            setCanLoadMore(transactions.length >= transactionRange.limit);
+          (nextTransactions) => {
+            setTransactions(nextTransactions);
+            setCanLoadMore(nextTransactions.length >= transactionRange.limit);
           },
           {
-            startHeight: tipHeader?.header.height ? tipHeader.header.height + 1 : transactionRange.startHeight,
+            startHeight: tipHeader?.header.height
+              ? tipHeader.header.height + 1
+              : transactionRange.startHeight,
             endHeight: 0,
             limit: transactionRange.limit,
           },
@@ -167,7 +207,7 @@ const Explore = () => {
     transactionRange.endHeight,
     transactionRange.limit,
     transactionRange.startHeight,
-    whichKey,
+    displayKey,
   ]);
 
   useEffect(() => {
@@ -190,15 +230,17 @@ const Explore = () => {
     fetchTransactions(nextStartHeight, nextEndHeight, false);
   }, [canLoadMore, fetchStartHeight, fetchTransactions, transactionRange.limit]);
 
+  const applyFeedContext = useCallback((context: FeedTreeContext) => {
+    setPeekGraphKey(context.key);
+    setTreeKind(context.treeKind);
+  }, []);
+
   return (
     <PageShell
       tools={[
         {
           label: 'Send',
-          renderIcon: () => <IonIcon
-            slot="icon-only"
-            icon={addCircleOutline}
-          />,
+          renderIcon: () => <IonIcon slot="icon-only" icon={addCircleOutline} />,
           action: () => presentSendModal(),
         },
         {
@@ -209,7 +251,7 @@ const Explore = () => {
       ]}
       renderBody={() => (
         <>
-          {!!whichKey && (
+          {!!displayKey && (
             <>
               <div
                 style={{
@@ -222,36 +264,67 @@ const Explore = () => {
                   marginBottom: 8,
                 }}
               >
-                <div style={{ fontFamily: 'monospace, monospace', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => {
-                    setPeekGraphKey('/');
-                    if (mode === 'feed') {
-                      setMode('tree');
-                    }
-                  }} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
+                <IonSegment
+                  value={treeKind}
+                  onIonChange={(event) => setTreeKind(event.detail.value as 'spatial' | 'temporal' | 'periodic')}
+                >
+                  <IonSegmentButton value="spatial">
+                    <IonLabel>Spatial</IonLabel>
+                  </IonSegmentButton>
+                  <IonSegmentButton value="temporal">
+                    <IonLabel>Temporal</IonLabel>
+                  </IonSegmentButton>
+                  <IonSegmentButton value="periodic">
+                    <IonLabel>Periodic</IonLabel>
+                  </IonSegmentButton>
+                </IonSegment>
+
+                <div style={{ fontFamily: 'monospace, monospace', display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPeekGraphKey(rootKeyFor(treeKind));
+                      if (mode === 'feed') {
+                        setMode('tree');
+                      }
+                    }}
+                    style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}
+                  >
                     ..
                   </button>
-                  <code>/</code>
+                  <code>{rootKeyFor(treeKind)}</code>
                   {clickableSegments.map((segment, index) => (
                     <div key={segment.value} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <button type="button" onClick={() => {
-                        setPeekGraphKey(segment.value);
-                        if (mode === 'feed') {
-                          setMode('tree');
-                        }
-                      }} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPeekGraphKey(segment.value);
+                          if (mode === 'feed') {
+                            setMode('tree');
+                          }
+                        }}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}
+                      >
                         {segment.label}
                       </button>
-                      {index < clickableSegments.length - 1 && <code>/</code>}
+                      {index < clickableSegments.length - 1 && <code>{treeKind === 'spatial' ? '/' : '+'}</code>}
                     </div>
                   ))}
                 </div>
+                {mode === 'tree' && (
+                  <div style={{ marginTop: 8 }}>
+                    <IonButton size="small" fill="outline" onClick={() => setMode('feed')}>
+                      Back to feed
+                    </IonButton>
+                  </div>
+                )}
               </div>
               {!!graph && (
                 <>
                   {mode === 'tree' && (
                     <DirTree
-                      forKey={whichKey}
+                      forKey={displayKey}
+                      treeKind={treeKind}
                       nodes={graph.nodes ?? []}
                       links={graph.links ?? []}
                       setForKey={setPeekGraphKey}
@@ -270,13 +343,10 @@ const Explore = () => {
                       onSwitchNavigator={(nextKey) => {
                         setNavigatorPublicKey(nextKey);
                         setPeekGraphKey('/');
+                        setTreeKind('spatial');
                         setMode('feed');
                       }}
-                      onActivePathChange={(path) => {
-                        if (mode === 'feed') {
-                          setPeekGraphKey(path);
-                        }
-                      }}
+                      onActiveContextChange={applyFeedContext}
                     />
                   )}
                 </>
