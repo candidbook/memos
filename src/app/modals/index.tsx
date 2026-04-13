@@ -3,8 +3,8 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { AppContext } from '../utils/appContext';
 import DirTree from '../components/dirTree';
 import MemoFeed from '../components/memoFeed';
-import { IonButton, IonIcon, useIonModal } from '@ionic/react';
-import { terminalOutline, addCircleOutline, gitBranchOutline, listOutline } from 'ionicons/icons';
+import { IonIcon, useIonModal } from '@ionic/react';
+import { terminalOutline, addCircleOutline } from 'ionicons/icons';
 import WebsocketConsole from './console';
 import Send from './send';
 import { indexTransactionsToGraph } from '../utils/indexer';
@@ -39,6 +39,7 @@ const Explore = () => {
     setGraph,
     tipHeader,
     navigatorPublicKey,
+    setNavigatorPublicKey,
     transactionRange,
     requestPkTransactions,
   } =
@@ -228,32 +229,24 @@ const Explore = () => {
                   marginBottom: 8,
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                    alignItems: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  <IonButton size="small" fill={mode === 'feed' ? 'solid' : 'outline'} onClick={() => setMode('feed')}>
-                    <IonIcon icon={listOutline} slot="start" />
-                    Feed
-                  </IonButton>
-                  <IonButton size="small" fill={mode === 'tree' ? 'solid' : 'outline'} onClick={() => setMode('tree')}>
-                    <IonIcon icon={gitBranchOutline} slot="start" />
-                    Tree
-                  </IonButton>
-                </div>
                 <div style={{ fontFamily: 'monospace, monospace', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => setPeekGraphKey('/')} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
+                  <button type="button" onClick={() => {
+                    setPeekGraphKey('/');
+                    if (mode === 'feed') {
+                      setMode('tree');
+                    }
+                  }} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
                     ..
                   </button>
                   <code>/</code>
                   {clickableSegments.map((segment, index) => (
                     <div key={segment.value} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <button type="button" onClick={() => setPeekGraphKey(segment.value)} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
+                      <button type="button" onClick={() => {
+                        setPeekGraphKey(segment.value);
+                        if (mode === 'feed') {
+                          setMode('tree');
+                        }
+                      }} style={{ border: 'none', background: 'transparent', color: 'var(--ion-color-primary)', textDecoration: 'underline' }}>
                         {segment.label}
                       </button>
                       {index < clickableSegments.length - 1 && <code>/</code>}
@@ -279,9 +272,14 @@ const Explore = () => {
                     <MemoFeed
                       transactions={transactions}
                       currentPath={whichKey}
-                      onDrill={setPeekGraphKey}
                       onLoadMore={loadMore}
                       canLoadMore={canLoadMore}
+                      focusTransactionId={focusTransactionId}
+                      onSwitchNavigator={(nextKey) => {
+                        setNavigatorPublicKey(nextKey);
+                        setPeekGraphKey('/');
+                        setMode('feed');
+                      }}
                     />
                   )}
                 </>

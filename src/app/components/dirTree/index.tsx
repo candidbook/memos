@@ -4,8 +4,6 @@ import {
   IonCard,
   IonCardContent,
   IonContent,
-  IonCardHeader,
-  IonCardSubtitle,
   IonButtons,
   IonHeader,
   IonItem,
@@ -59,23 +57,6 @@ const trimPubkeyDisplay = (value: string) => {
 const toDisplayPath = (value: string) => {
   const trimmed = trimPubkeyDisplay(value);
   return trimmed || '/';
-};
-
-const buildPathSegments = (value: string) => {
-  if (!isValidAbsolutePath(value) || value === '/') {
-    return [];
-  }
-
-  const parts = value.split('/').filter(Boolean);
-  let currentPath = '/';
-
-  return parts.map((segment) => {
-    currentPath = `${currentPath}${segment}/`;
-    return {
-      label: segment,
-      value: currentPath,
-    };
-  });
 };
 
 const getMemoIcon = (memoContent: MemoContent) => {
@@ -205,10 +186,6 @@ function DirTree({
     handleNodeFocus(initialNode);
   }, [initialNode, handleNodeFocus]);
 
-  const clickableSegments = useMemo(() => {
-    return buildPathSegments(toDisplayPath(forKey));
-  }, [forKey]);
-
   const [visibleData, setVisibleData] = useState<{
     nodes: GraphNode[];
     links: GraphLink[];
@@ -317,73 +294,6 @@ function DirTree({
 
   return (
     <IonCard>
-      <IonCardHeader className="ion-padding-horizontal">
-        <IonCardSubtitle
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 4,
-              fontFamily: 'monospace, monospace',
-              minHeight: '30px',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setForKey('/')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--ion-color-primary)',
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: 'inherit',
-                textDecoration: 'underline',
-              }}
-            >
-              ..
-            </button>
-            <code>/</code>
-            {clickableSegments.map((segment, index) => (
-              <div
-                key={segment.value}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setForKey(segment.value)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--ion-color-primary)',
-                    padding: 0,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontSize: 'inherit',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  {segment.label}
-                </button>
-                {index < clickableSegments.length - 1 && <code>/</code>}
-              </div>
-            ))}
-          </div>
-        </IonCardSubtitle>
-      </IonCardHeader>
       <IonCardContent>
         {!rootTree && <p>No entries available for this key.</p>}
         {rootTree && (
