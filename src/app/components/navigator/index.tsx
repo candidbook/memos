@@ -16,9 +16,12 @@ import {
   IonRange,
   IonToolbar,
 } from '@ionic/react';
-import { sunnyOutline } from 'ionicons/icons';
+import { logoYoutube, sunnyOutline } from 'ionicons/icons';
 import { useContext, useMemo, useState } from 'react';
 import { AppContext } from '../../utils/appContext';
+
+const CANDID_REEL_PUBLIC_KEY = 'GFyHkcnYf0+Og/DuhzXAFN0J5aOH+0k9RaJ58lOy5Mg=';
+const DEFAULT_WINDOW_SIZE = 20_000;
 
 const Navigator = ({
   onDismiss,
@@ -34,6 +37,7 @@ const Navigator = ({
   } = useContext(AppContext);
 
   const maxHeight = tipHeader?.header.height ?? 0;
+  const defaultEndHeight = Math.max(maxHeight - DEFAULT_WINDOW_SIZE, 0);
   const [publicKey, setPublicKey] = useState(navigatorPublicKey);
   const [startHeight, setStartHeight] = useState(
     `${Math.min(Math.max(transactionRange.startHeight, 0), maxHeight)}`,
@@ -105,6 +109,15 @@ const Navigator = ({
                   placeholder="Enter a public key"
                   onIonInput={(event) => setPublicKey(`${event.detail.value ?? ''}`)}
                 />
+                <IonButton
+                  slot="end"
+                  fill="clear"
+                  size="small"
+                  onClick={() => setPublicKey(CANDID_REEL_PUBLIC_KEY)}
+                >
+                  <IonIcon slot="start" icon={logoYoutube} />
+                  Candid-Reel
+                </IonButton>
               </IonItem>
               <IonItem>
                 <IonLabel position="stacked">Start height</IonLabel>
@@ -123,6 +136,17 @@ const Navigator = ({
                   value={endHeight}
                   onIonInput={(event) => setEndHeight(`${event.detail.value ?? 0}`)}
                 />
+                <IonButton
+                  slot="end"
+                  fill="clear"
+                  size="small"
+                  onClick={() => {
+                    setStartHeight(`${maxHeight}`);
+                    setEndHeight(`${defaultEndHeight}`);
+                  }}
+                >
+                  Tip - 20k
+                </IonButton>
               </IonItem>
               <IonItem>
                 <IonLabel position="stacked">
