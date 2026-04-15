@@ -266,28 +266,6 @@ const MemoFeed = ({
         scrollSnapType: 'y mandatory',
       }}
     >
-      {normalizedFilterPath && onBackToMainFeed && (
-        <div style={{ position: 'sticky', top: 0, zIndex: 5, padding: '8px', background: 'var(--ion-background-color)' }}>
-          <IonButton
-            size="small"
-            fill="outline"
-            onClick={() => {
-              const activeEntry = effectiveEntries[activeIndex] ?? effectiveEntries[0];
-              if (!activeEntry) {
-                return;
-              }
-
-              onBackToMainFeed({
-                txId: activeEntry.tx.txId,
-                path: activeEntry.path ?? normalizedFilterPath,
-                source: 'tree-subfeed',
-              });
-            }}
-          >
-            Back to main feed
-          </IonButton>
-        </div>
-      )}
       {visibleEntries.map((entry, index) => {
         const { tx } = entry;
         const content = getMemoContent(tx.memo);
@@ -310,6 +288,7 @@ const MemoFeed = ({
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                position: 'relative',
               }}
             >
                 <IonCardHeader>
@@ -359,6 +338,29 @@ const MemoFeed = ({
                       Drill out
                     </IonButton>
                   </>
+                )}
+
+                {entry.kind === 'memo' && normalizedFilterPath && onBackToMainFeed && (
+                  <IonButton
+                    size="small"
+                    fill="solid"
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      right: 12,
+                      zIndex: 3,
+                      margin: 0,
+                    }}
+                    onClick={() => {
+                      onBackToMainFeed({
+                        txId: tx.txId,
+                        path: entry.path ?? normalizedFilterPath,
+                        source: 'tree-subfeed',
+                      });
+                    }}
+                  >
+                    Main feed
+                  </IonButton>
                 )}
 
                 {entry.kind === 'memo' && (
